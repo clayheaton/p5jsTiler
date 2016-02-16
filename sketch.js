@@ -1,8 +1,9 @@
-var exampleSelect, confirmButton;
+var exampleSelect, confirmButton, quiltedImage;
 var activeSet;
 var sourceImages   = [];
 
 var reviewSelected = false;
+var drawQuilted    = false;
 
 // TODO: Use when user uploads images.
 var draggingImages = true;
@@ -36,6 +37,14 @@ function draw() {
   if (reviewSelected) {
     for (var i = 0; i < sourceImages.length; i++) {
         image(sourceImages[i],10 + (i*155),30,150,150);
+    }
+  }
+
+  if (drawQuilted){
+    if(quiltedImage === null){
+      console.log("null quilted image");
+    } else {
+      image(quiltedImage, 0, 0);
     }
   }
 }
@@ -78,9 +87,43 @@ function processDraggedFile(file){
     var img = loadImage(file.data);
     sourceImages.push(img);
     reviewSelected = true;
+    confirmButton.show();
 }
 
 function confirmQuiltButtonClicked(){
     exampleSelect.remove();
     confirmButton.remove();
+    reviewSelected = false;
+    drawQuilted    = true;
+
+    testImageQuilter();
 }
+
+function testImageQuilter(){
+    // TESTING
+    var imageQuilter = new ImageQuilter(sourceImages, 70, 70);
+    quiltedImage     = imageQuilter.getTestSample();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
