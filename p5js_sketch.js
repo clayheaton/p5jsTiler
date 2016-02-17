@@ -13,6 +13,9 @@ function setup() {
   stroke(0); 
   fill(150);
 
+  // What is our pixel density? Retina screen?
+  console.log(pixelDensity());
+
   // Establish the drop down of examples
   exampleSelect = createSelect();
   exampleSelect.position(10,10);
@@ -36,7 +39,11 @@ function draw() {
   background("#efefef");
   if (reviewSelected) {
     for (var i = 0; i < sourceImages.length; i++) {
-        image(sourceImages[i],10 + (i*155),30,150,150);
+        // TODO: Fix this so that it's showing the proper resolution of the sample
+        // At the moment, it is cramming the whole thing into 150x150
+        // image(img,[sx=0],[sy=0],[sWidth=img.width],[sHeight=img.height],[dx=0],[dy=0],[dWidth],[dHeight])
+        // Doesn't look great - consider scaling
+        image(sourceImages[i],0,0,150,150,10 + (i*155),30,150,150);
     }
   }
 
@@ -44,7 +51,7 @@ function draw() {
     if(quiltedImage === null){
       console.log("null quilted image");
     } else {
-      image(quiltedImage, 0, 0);
+      image(quiltedImage.image, 0, 0);
     }
   }
 }
@@ -101,8 +108,8 @@ function confirmQuiltButtonClicked(){
 
 function testImageQuilter(){
     // TESTING
-    var imageQuilter = new ImageQuilter(sourceImages, 70, 70);
-    quiltedImage     = imageQuilter.getTestSample();
+    var imageQuilter = new ImageQuilter(sourceImages, 70, 70, 100,0.2);
+    quiltedImage     = imageQuilter.getRandomImageSample();
 }
 
 
