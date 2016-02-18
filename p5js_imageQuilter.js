@@ -46,19 +46,31 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
         // console.log("Upper left corner: (" + this.currentColumn + ", " + this.currentRow + ")");
         // Get a random sample and put it in the upper left corner. 
         thisSample = this.getRandomImageSample();
+        thisSample.needsLeftOverlap     = false;
+        thisSample.needsTopOverlap      = false;
+        thisSample.needsCompleteOverlap = false;
     } else if (this.currentRow == 0) {
         // console.log("Top row: (" + this.currentColumn + ", " + this.currentRow + ")");
-        thisSample   = this.getRandomImageSample();
+        thisSample = this.getRandomImageSample();
+        thisSample.needsLeftOverlap     = true;
+        thisSample.needsTopOverlap      = false;
+        thisSample.needsCompleteOverlap = false;
         thisSample.y = 0;
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
     } else if (this.currentColumn == 0) {
         // console.log("Left column: (" + this.currentColumn + ", " + this.currentRow + ")");
-        thisSample   = this.getRandomImageSample();
+        thisSample = this.getRandomImageSample();
+        thisSample.needsLeftOverlap     = false;
+        thisSample.needsTopOverlap      = true;
+        thisSample.needsCompleteOverlap = false;
         thisSample.x = 0;
         thisSample.y = (this.currentRow*thisSample.h) - (this.currentRow * this.overlapH);
     } else {
         // console.log("Filling: (" + this.currentColumn + ", " + this.currentRow + ")");
-        thisSample   = this.getRandomImageSample();
+        thisSample = this.getRandomImageSample();
+        thisSample.needsLeftOverlap     = false;
+        thisSample.needsTopOverlap      = false;
+        thisSample.needsCompleteOverlap = true;
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
         thisSample.y = (this.currentRow*thisSample.h)    - (this.currentRow * this.overlapH);
     }
@@ -76,9 +88,31 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
     // Check if we're finished (the row number will be too high)
     if (this.currentRow == this.rows) {
         this.completed = true;
-        console.log("Quilting complete.");
     }
+
+
+    var canvasSample;
+    // MOVE THIS CODE INTO THE ABOVE CONDITIONAL
+
+      if (thisSample.needsLeftOverlap) {
+        // use this.overlapW
+        canvasSample = get(thisSample.x - this.overlapW, thisSample.y,this.overlapW,thisSample.height);
+        thisSample   = this.findSeamFor(thisSample,canvasSample);
+      } else if (thisSample.needsTopOverlap) {
+        // use this.overlapH
+        canvasSample = get(thisSample.x, thisSample.y - this.overlapH,thisSample.width,this.overlapH);
+        thisSample   = this.findSeamFor(thisSample,canvasSample);
+      } else if (thisSample.needsCompleteOverlap) {
+        canvasSample = get(thisSample.x - this.overlapW, thisSample.y - this.overlapH,thisSample.width,thisSample.height);
+        thisSample   = this.findSeamFor(thisSample,canvasSample);
+      }
+
+
     return thisSample;
+}
+ImageQuilter.prototype.findSeamFor = function(sample,canvasSample) {
+    // TODO: Error check first and use a while loop to continue until the fit is acceptable
+    return sample;
 }
 
 
@@ -95,10 +129,28 @@ function ImageSample(theImage){
     this.image = theImage; // Assumption is this will be a p5.Image object.
     this.w     = this.image.width;
     this.h     = this.image.height;
+
+    this.needsLeftOverlap     = false;
+    this.needsTopOverlap      = false;
+    this.needsCompleteOverlap = false;
+
+    // The position of the upper left corner
     this.x     = 0;
     this.y     = 0;
-}
 
+    this.leftGraph     = null;
+    this.topGraph      = null;
+    this.completeGraph = null;
+}
+ImageSample.prototype.makeLeftGraph = function(overlapPixelsLeft){
+
+}
+ImageSample.prototype.makeTopGraph = function(overlapPixelsTop){
+
+}
+ImageSample.prototype.makeCompleteGraph = function(overlapPixelsLeft,overlapPixelsTop){
+
+}
 
 
 
@@ -127,7 +179,12 @@ function ImageOverlapGraph(){
 }
 
 function ImageOverlapNode(){
+    this.isStart = false;
+    this.isGoal  = false;
 
+    // When this is set to true, then we will retain this on the seam. 
+    // False means we will show the underlying pixel from the canvas.
+    this.keep    = false;
 }
 
 function ImageOverlapPathfinder(){

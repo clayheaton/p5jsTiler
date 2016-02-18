@@ -61,7 +61,17 @@ function draw() {
       performImageQuilting = false;
       // TODO: Move to next state here. Function that adds a button, etc.
     } else {
+      // TODO: Refactor so that this isn't such a mess with passing image samples around.
+      // Since I can get the canvas from the ImageQuilter class, maybe just move it there? 
+
+      // 1. Get the next sample
+      // 2. Get a sample from the canvas matching the overlap
+      //     Use variables needsLeftOverlap, needsTopOverlap, and needsCompleteOverlap
+      // 3. Set the canvas sample to the next sample and it will use the sent data to determine pixels to keep
+      // 4. place the next sample
       sample = imageQuilter.nextQuiltingSample();
+
+      // Place the image
       image(sample.image,sample.x,sample.y);
     }
   }
