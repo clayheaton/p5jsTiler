@@ -1,9 +1,10 @@
-var exampleSelect, confirmButton, quiltedImage;
+var exampleSelect, confirmButton, quiltedTestImage;
+var imageQuilter;
 var activeSet;
 var sourceImages   = [];
 
 var reviewSelected = false;
-var drawQuilted    = false;
+var performImageQuilting = false;
 
 // TODO: Use when user uploads images.
 var draggingImages = true;
@@ -12,9 +13,9 @@ function setup() {
   var c = createCanvas(1000, 450); // 650 tall is better
   stroke(0); 
   fill(150);
-
+  // frameRate(2);
   // What is our pixel density? Retina screen?
-  console.log(pixelDensity());
+  // console.log(pixelDensity());
 
   // Establish the drop down of examples
   exampleSelect = createSelect();
@@ -36,25 +37,31 @@ function setup() {
 }
 
 function draw() {
-  background("#efefef");
+  // background("#efefef");
   if (reviewSelected) {
     for (var i = 0; i < sourceImages.length; i++) {
         // TODO: Fix this so that it's showing the proper resolution of the sample
         // At the moment, it is cramming the whole thing into 150x150
         // image(img,[sx=0],[sy=0],[sWidth=img.width],[sHeight=img.height],[dx=0],[dy=0],[dWidth],[dHeight])
         // Doesn't look great - consider scaling
-        image(sourceImages[i],0,0,150,150,10 + (i*155),30,150,150);
+        // image(sourceImages[i],0,0,150,150,10 + (i*155),30,150,150);
     }
   }
 
-  if (drawQuilted){
-    if(quiltedImage === null){
-      console.log("null quilted image");
+  if (performImageQuilting){
+    if (imageQuilter.completed) {
+      performImageQuilting = false;
+      // TODO: Move to next state here. Function that adds a button, etc.
     } else {
-      image(quiltedImage.image, 0, 0);
+      sample = imageQuilter.nextQuiltingSample();
+      image(sample.image,sample.x,sample.y);
     }
   }
 }
+
+
+
+
 
 function exampleChangedEvent(){
     var item = exampleSelect.value();
@@ -100,16 +107,24 @@ function processDraggedFile(file){
 function confirmQuiltButtonClicked(){
     exampleSelect.remove();
     confirmButton.remove();
-    reviewSelected = false;
-    drawQuilted    = true;
-
-    testImageQuilter();
+    reviewSelected       = false;
+    performImageQuilting = true;
+    createQuiltedImage();
+    // testImageQuilter();
 }
 
+function createQuiltedImage(){
+  imageQuilter = new ImageQuilter(sourceImages, 70, 70, 100,0.2,width,height);
+}
+
+
+
+
+// FUNCTIONS FOR TESTING
 function testImageQuilter(){
     // TESTING
-    var imageQuilter = new ImageQuilter(sourceImages, 70, 70, 100,0.2);
-    quiltedImage     = imageQuilter.getRandomImageSample();
+    imageQuilter     = new ImageQuilter(sourceImages, 70, 70, 100,0.2,width,height);
+    quiltedTestImage = imageQuilter.getRandomImageSample();
 }
 
 
