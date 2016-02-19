@@ -30,8 +30,8 @@ function ImageQuilter(sourceImagesArray, sampleW, sampleH, numSamples, overlapPe
     this.numSamples   = numSamples;
 
     for (var i = 0; i < this.numSamples; i++) {
-        sampIndex = parseInt(random(0,this.sourceImages.length - 1));
-        samp = this.sampleMaker.makeSample(this.sourceImages[sampIndex]);
+        sampIndex = parseInt(random(0,this.sourceImages.length - 0.01)); // -0.01 to prevent a bug with random hitting a number out of range
+        samp      = this.sampleMaker.makeSample(this.sourceImages[sampIndex]);
         this.imageSamples.push(samp);
     }
 }
@@ -40,41 +40,34 @@ ImageQuilter.prototype.getRandomImageSample = function(){
     return this.imageSamples[x];
 }
 ImageQuilter.prototype.nextQuiltingSample = function(){
-    var thisSample;
+    var thisSample, canvasSample;
+
     // These are the cases for the different quilting positions
     if (this.currentRow == 0 && this.currentColumn == 0) {
-        // console.log("Upper left corner: (" + this.currentColumn + ", " + this.currentRow + ")");
-        // Get a random sample and put it in the upper left corner. 
-        thisSample = this.getRandomImageSample();
-        thisSample.needsLeftOverlap     = false;
-        thisSample.needsTopOverlap      = false;
-        thisSample.needsCompleteOverlap = false;
+        // Unmodified sample for upper left corner
+        thisSample   = this.getRandomImageSample();
+
     } else if (this.currentRow == 0) {
-        // console.log("Top row: (" + this.currentColumn + ", " + this.currentRow + ")");
-        thisSample = this.getRandomImageSample();
-        thisSample.needsLeftOverlap     = true;
-        thisSample.needsTopOverlap      = false;
-        thisSample.needsCompleteOverlap = false;
+        thisSample   = this.getRandomImageSample();
         thisSample.y = 0;
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
+        canvasSample = get(thisSample.x - this.overlapW, thisSample.y,this.overlapW,thisSample.height);
+        thisSample   = this.findLeftSeamFor(thisSample,canvasSample);
+
     } else if (this.currentColumn == 0) {
-        // console.log("Left column: (" + this.currentColumn + ", " + this.currentRow + ")");
-        thisSample = this.getRandomImageSample();
-        thisSample.needsLeftOverlap     = false;
-        thisSample.needsTopOverlap      = true;
-        thisSample.needsCompleteOverlap = false;
+        thisSample   = this.getRandomImageSample();
         thisSample.x = 0;
         thisSample.y = (this.currentRow*thisSample.h) - (this.currentRow * this.overlapH);
+        canvasSample = get(thisSample.x, thisSample.y - this.overlapH,thisSample.width,this.overlapH);
+        thisSample   = this.findTopSeamFor(thisSample,canvasSample);
+
     } else {
-        // console.log("Filling: (" + this.currentColumn + ", " + this.currentRow + ")");
-        thisSample = this.getRandomImageSample();
-        thisSample.needsLeftOverlap     = false;
-        thisSample.needsTopOverlap      = false;
-        thisSample.needsCompleteOverlap = true;
+        thisSample   = this.getRandomImageSample();
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
         thisSample.y = (this.currentRow*thisSample.h)    - (this.currentRow * this.overlapH);
+        canvasSample = get(thisSample.x - this.overlapW, thisSample.y - this.overlapH,thisSample.width,thisSample.height);
+        thisSample   = this.findCompleteSeamFor(thisSample,canvasSample);
     }
-
     // console.log("    (" + thisSample.x + ", " + thisSample.y + ")");
 
     // Increment our position, working across columns then down rows
@@ -90,31 +83,22 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
         this.completed = true;
     }
 
-
-    var canvasSample;
-    // MOVE THIS CODE INTO THE ABOVE CONDITIONAL
-
-      if (thisSample.needsLeftOverlap) {
-        // use this.overlapW
-        canvasSample = get(thisSample.x - this.overlapW, thisSample.y,this.overlapW,thisSample.height);
-        thisSample   = this.findSeamFor(thisSample,canvasSample);
-      } else if (thisSample.needsTopOverlap) {
-        // use this.overlapH
-        canvasSample = get(thisSample.x, thisSample.y - this.overlapH,thisSample.width,this.overlapH);
-        thisSample   = this.findSeamFor(thisSample,canvasSample);
-      } else if (thisSample.needsCompleteOverlap) {
-        canvasSample = get(thisSample.x - this.overlapW, thisSample.y - this.overlapH,thisSample.width,thisSample.height);
-        thisSample   = this.findSeamFor(thisSample,canvasSample);
-      }
-
-
     return thisSample;
-}
-ImageQuilter.prototype.findSeamFor = function(sample,canvasSample) {
-    // TODO: Error check first and use a while loop to continue until the fit is acceptable
+};
+ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample){
+    // Create a start node for pathfinding
+    var startNode = new ImageOverlapNode();
+    var goalNode  = new ImageOverlapNode();
+    startNode.isStart = true;
+    goalNode.isGoal   = true;
     return sample;
-}
-
+};
+ImageQuilter.prototype.findTopSeamFor = function(sample, canvasSample){
+    return sample;
+};
+ImageQuilter.prototype.findCompleteSeamFor = function(sample, canvasSample){
+    return sample;
+};
 
 // TESTING
 ImageQuilter.prototype.getTestSample = function(){
@@ -130,17 +114,10 @@ function ImageSample(theImage){
     this.w     = this.image.width;
     this.h     = this.image.height;
 
-    this.needsLeftOverlap     = false;
-    this.needsTopOverlap      = false;
-    this.needsCompleteOverlap = false;
-
     // The position of the upper left corner
     this.x     = 0;
     this.y     = 0;
 
-    this.leftGraph     = null;
-    this.topGraph      = null;
-    this.completeGraph = null;
 }
 ImageSample.prototype.makeLeftGraph = function(overlapPixelsLeft){
 
@@ -181,6 +158,7 @@ function ImageOverlapGraph(){
 function ImageOverlapNode(){
     this.isStart = false;
     this.isGoal  = false;
+    this.cost    = 0;
 
     // When this is set to true, then we will retain this on the seam. 
     // False means we will show the underlying pixel from the canvas.
