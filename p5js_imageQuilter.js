@@ -1,4 +1,5 @@
 // Quilts an image based on samples from one or more sources.
+var testNode;
 
 function ImageQuilter(sourceImagesArray, sampleW, sampleH, numSamples, overlapPercent,widthToQuilt,heightToQuilt){
     this.sourceImages   = sourceImagesArray;
@@ -51,21 +52,21 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
         thisSample   = this.getRandomImageSample();
         thisSample.y = 0;
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
-        canvasSample = get(thisSample.x - this.overlapW, thisSample.y,this.overlapW,thisSample.height);
+        canvasSample = new ImageSample(get(thisSample.x - this.overlapW, thisSample.y,this.overlapW,thisSample.h));
         thisSample   = this.findLeftSeamFor(thisSample,canvasSample);
 
     } else if (this.currentColumn == 0) {
         thisSample   = this.getRandomImageSample();
         thisSample.x = 0;
         thisSample.y = (this.currentRow*thisSample.h) - (this.currentRow * this.overlapH);
-        canvasSample = get(thisSample.x, thisSample.y - this.overlapH,thisSample.width,this.overlapH);
+        canvasSample = new ImageSample(get(thisSample.x, thisSample.y - this.overlapH,thisSample.w,this.overlapH));
         thisSample   = this.findTopSeamFor(thisSample,canvasSample);
 
     } else {
         thisSample   = this.getRandomImageSample();
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
         thisSample.y = (this.currentRow*thisSample.h)    - (this.currentRow * this.overlapH);
-        canvasSample = get(thisSample.x - this.overlapW, thisSample.y - this.overlapH,thisSample.width,thisSample.height);
+        canvasSample = new ImageSample(get(thisSample.x - this.overlapW, thisSample.y - this.overlapH,thisSample.w,thisSample.h));
         thisSample   = this.findCompleteSeamFor(thisSample,canvasSample);
     }
     // console.log("    (" + thisSample.x + ", " + thisSample.y + ")");
@@ -87,10 +88,26 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
 };
 ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample){
     // Create a start node for pathfinding
-    var startNode = new ImageOverlapNode();
-    var goalNode  = new ImageOverlapNode();
+    // TODO make an alternate constructor for dummy nodes
+    var startNode = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
+    var goalNode  = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
     startNode.isStart = true;
     goalNode.isGoal   = true;
+
+    sample.testGraphData = [];
+
+    for (var y = this.sampleH - 1; y >= 0; y--) {
+        var thisRow = [];
+        for (var x = 0; x < this.overlapW; x++) {
+            var p1 = sample.get(x,y);
+            var p2 = canvasSample.get(x,y); // 
+            var n  = new ImageOverlapNode(p1,p2);
+            thisRow.push(n);
+            // console.log(n);
+        }
+        sample.testGraphData.push(thisRow);
+    }
+
     return sample;
 };
 ImageQuilter.prototype.findTopSeamFor = function(sample, canvasSample){
@@ -118,15 +135,13 @@ function ImageSample(theImage){
     this.x     = 0;
     this.y     = 0;
 
-}
-ImageSample.prototype.makeLeftGraph = function(overlapPixelsLeft){
+
+
+    this.image.loadPixels();
 
 }
-ImageSample.prototype.makeTopGraph = function(overlapPixelsTop){
-
-}
-ImageSample.prototype.makeCompleteGraph = function(overlapPixelsLeft,overlapPixelsTop){
-
+ImageSample.prototype.get = function(x,y) {
+    return this.image.get(x,y);
 }
 
 
@@ -155,14 +170,22 @@ function ImageOverlapGraph(){
 
 }
 
-function ImageOverlapNode(){
+function ImageOverlapNode(pixelOne, pixelTwo){
     this.isStart = false;
     this.isGoal  = false;
     this.cost    = 0;
 
     // When this is set to true, then we will retain this on the seam. 
     // False means we will show the underlying pixel from the canvas.
-    this.keep    = false;
+    this.keep     = false;
+    this.pixelOne = pixelOne;
+    this.pixelTwo = pixelTwo;
+
+    // TODO: Don't ignore transparency
+    for (var i = 0; i < 3; i++) {
+        this.cost += Math.abs(this.pixelOne[i] - this.pixelTwo[i]);
+    }
+    console.log(this.cost);
 }
 
 function ImageOverlapPathfinder(){
