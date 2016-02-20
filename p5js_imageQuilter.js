@@ -88,14 +88,14 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
 };
 ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample){
     // Create a start node for pathfinding
-    
+
     // TODO make an alternate constructor for dummy nodes
     var startNode = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
     var goalNode  = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
     startNode.isStart = true;
     goalNode.isGoal   = true;
 
-    sample.testGraphData = [];
+    var graphData = [];
 
     for (var y = this.sampleH - 1; y >= 0; y--) {
         var thisRow = [];
@@ -104,9 +104,8 @@ ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample){
             var p2 = canvasSample.get(x,y); // 
             var n  = new ImageOverlapNode(p1,p2);
             thisRow.push(n);
-            // console.log(n);
         }
-        sample.testGraphData.push(thisRow);
+        graphData.push(thisRow);
     }
 
     return sample;
@@ -186,7 +185,6 @@ function ImageOverlapNode(pixelOne, pixelTwo){
     for (var i = 0; i < 3; i++) {
         this.cost += Math.abs(this.pixelOne[i] - this.pixelTwo[i]);
     }
-    console.log(this.cost);
 }
 
 function ImageOverlapPathfinder(){
