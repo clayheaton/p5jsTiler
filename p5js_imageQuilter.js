@@ -97,7 +97,7 @@ ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample){
 
     var graphData = [];
 
-    for (var y = this.sampleH - 1; y >= 0; y--) {
+    for (var y = 0; y < this.sampleH; y++) {
         var thisRow = [];
         for (var x = 0; x < this.overlapW; x++) {
             var p1 = sample.get(x,y);
