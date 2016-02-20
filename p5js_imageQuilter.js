@@ -88,6 +88,7 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
 };
 ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample){
     // Create a start node for pathfinding
+    
     // TODO make an alternate constructor for dummy nodes
     var startNode = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
     var goalNode  = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
