@@ -87,13 +87,7 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
     return thisSample;
 };
 ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample){
-    // Create a start node for pathfinding
-
-    // TODO make an alternate constructor for dummy nodes
-    var startNode = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
-    var goalNode  = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
-    startNode.isStart = true;
-    goalNode.isGoal   = true;
+    // This handles the top row only.
 
     var graphData = [];
 
@@ -107,6 +101,8 @@ ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample){
         }
         graphData.push(thisRow);
     }
+
+    var seamGraph = new ImageOverlapGraph(graphData);
 
     return sample;
 };
@@ -166,14 +162,85 @@ ImageSampleMaker.prototype.makeSample = function(sourceImage){
 
 
 
-function ImageOverlapGraph(){
+function ImageOverlapGraph(data){
+    this.graphData = data; // nested array of ImageOverlapNodes
+    // TODO make an alternate constructor for dummy nodes
+    var startNode     = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
+    var goalNode      = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
+    startNode.isStart = true;
+    goalNode.isGoal   = true;
 
+    // Tree structure from the start node
+    //            n       start node
+    //          / | \
+    //        n   n   n   nodes
+    //        | X | X |
+    //        1   2   3   ...
+    //        | X | X |
+    //        n   n   n   ...
+    //         \  |  /
+    //            n       goal node
+
+    // Deal with the start node
+    for (var i = 0; i < this.graphData[0].length; i++) {
+        startNode.neighbors.push(this.graphData[0][i]);
+    }
+
+    // Deal with all of the nested nodes except the last row
+    for (var i = 1; i < this.graphData.length - 1; i++) {
+        for (var j = 0; j < this.graphData[i].length; j++) {
+            node = this.graphData[i][j];
+            if (j > 0) {
+                // Case 1 (above) does not get this.
+                node.neighbors.push(this.graphData[i+1][j-1]);
+            }
+            if (j == this.graphData[i].length - 1) {
+                // Case 3 (above) does not get this.
+                node.neighbors.push(this.graphData[i+1][j+1]);
+            } 
+            // All nodes get the node below
+            node.neighbors.push(this.graphData[i+1][j]);
+        }
+    }
+
+    // Deal with the last full set of nodes before the goal
+    for (var i = 0; i < this.graphData[this.graphData.length - 1].length; i++) {
+        node = this.graphData[this.graphData.length - 1][i];
+        node.neighbors.push(goalNode);
+    }
+
+    // Use this for a HashMap: https://github.com/flesler/hashmap
+
+    // At this point we have a complete graph
+    // Use Dijkstra's Algorithm - maybe A* in the future.
+    // http://www.redblobgames.com/pathfinding/a-star/introduction.html
+    frontier = new PriorityQueue({ comparator: function(a, b) { return a.priority - b.priority; }});
+    startNode.priority = 0;
+    frontier.queue(startNode);
+    came_from   = {}
+    cost_so_far = {}
+    cost_so_far[startNode] = 0;
+    came_from[startNode] = null; 
+
+    while (frontier.length > 0) {
+        current = frontier.dequeue();
+        if (current.isGoal) {
+            break;
+        } 
+        for (var i = 0; i < current.neighbors.length; i++) {
+            next = current.neighbors[i];
+            new_cost = cost_so_far[current] + next.cost;
+        }
+    }
 }
 
+
 function ImageOverlapNode(pixelOne, pixelTwo){
-    this.isStart = false;
-    this.isGoal  = false;
-    this.cost    = 0;
+    this.isStart   = false;
+    this.isGoal    = false;
+    this.cost      = 0;
+    this.neighbors = [];
+    this.cameFrom  = null; // If null, then we are at the starting node.
 
     // When this is set to true, then we will retain this on the seam. 
     // False means we will show the underlying pixel from the canvas.
