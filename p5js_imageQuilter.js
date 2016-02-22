@@ -30,11 +30,11 @@ function ImageQuilter(sourceImagesArray, sampleW, sampleH, numSamples, overlapPe
     this.sampleMaker  = new ImageSampleMaker(sampleW, sampleH);
     this.numSamples   = numSamples;
 
-    for (var i = 0; i < this.numSamples; i++) {
-        sampIndex = parseInt(random(0,this.sourceImages.length - 0.01)); // -0.01 to prevent a bug with random hitting a number out of range
-        samp      = this.sampleMaker.makeSample(this.sourceImages[sampIndex]);
-        this.imageSamples.push(samp);
-    }
+    // for (var i = 0; i < this.numSamples; i++) {
+    //     sampIndex = parseInt(random(0,this.sourceImages.length - 0.01)); // -0.01 to prevent a bug with random hitting a number out of range
+    //     samp      = this.sampleMaker.makeSample(this.sourceImages[sampIndex]);
+    //     this.imageSamples.push(samp);
+    // }
 }
 ImageQuilter.prototype.getRandomImageSample = function(){
     x = parseInt(random(0, this.imageSamples.length - 1))
@@ -43,27 +43,27 @@ ImageQuilter.prototype.getRandomImageSample = function(){
 ImageQuilter.prototype.nextQuiltingSample = function(){
     var thisSample, canvasSample;
 
+    // Make a sample
+    var sampIndex = parseInt(random(0,this.sourceImages.length - 0.01));
+    thisSample    = this.sampleMaker.makeSample(this.sourceImages[sampIndex]);
+
     // These are the cases for the different quilting positions
     if (this.currentRow == 0 && this.currentColumn == 0) {
         // Unmodified sample for upper left corner
-        thisSample   = this.getRandomImageSample();
 
     } else if (this.currentRow == 0) {
-        thisSample   = this.getRandomImageSample();
         thisSample.y = 0;
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
         canvasSample = new ImageSample(get(thisSample.x - this.overlapW, thisSample.y,this.overlapW,thisSample.h));
         thisSample   = this.findLeftSeamFor(thisSample,canvasSample);
 
     } else if (this.currentColumn == 0) {
-        thisSample   = this.getRandomImageSample();
         thisSample.x = 0;
         thisSample.y = (this.currentRow*thisSample.h) - (this.currentRow * this.overlapH);
         canvasSample = new ImageSample(get(thisSample.x, thisSample.y - this.overlapH,thisSample.w,this.overlapH));
         thisSample   = this.findTopSeamFor(thisSample,canvasSample);
 
     } else {
-        thisSample   = this.getRandomImageSample();
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
         thisSample.y = (this.currentRow*thisSample.h)    - (this.currentRow * this.overlapH);
         canvasSample = new ImageSample(get(thisSample.x - this.overlapW, thisSample.y - this.overlapH,thisSample.w,thisSample.h));
@@ -102,13 +102,46 @@ ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample){
         graphData.push(thisRow);
     }
 
-    var seam = new ImageOverlapGraph(graphData);
+    var seam = new ImageOverlapGraph(graphData,"left");
 
-    
+    for (var i = 0; i < seam.length; i++) {
+        var x = seam[i][0];
+        var y = seam[i][1];
+        for (var p = 0; p < x; p++) {
+            // Set the pixel transparent
+            sample.image.set(p,y,color(0,0,0,0));
+        }
+    }
+    sample.image.updatePixels();
 
     return sample;
 };
 ImageQuilter.prototype.findTopSeamFor = function(sample, canvasSample){
+    var graphData = [];
+
+    for (var y = 0; y < this.overlapH; y++) {
+        var thisRow = [];
+        for (var x = 0; x < this.sampleW; x++) {
+            var p1 = sample.get(x,y);
+            var p2 = canvasSample.get(x,y); // 
+            var n  = new ImageOverlapNode(p1,p2);
+            thisRow.push(n);
+        }
+        graphData.push(thisRow);
+    }
+
+    var seam = new ImageOverlapGraph(graphData,"top");
+
+    for (var i = 0; i < seam.length; i++) {
+        var x = seam[i][0];
+        var y = seam[i][1];
+        for (var p = 0; p < y; p++) {
+            // Set the pixel transparent
+            sample.image.set(x,p,color(0,0,0,0));
+        }
+    }
+    sample.image.updatePixels();
+
     return sample;
 };
 ImageQuilter.prototype.findCompleteSeamFor = function(sample, canvasSample){
@@ -160,7 +193,7 @@ ImageSampleMaker.prototype.makeSample = function(sourceImage){
 
 
 
-function ImageOverlapGraph(data){
+function ImageOverlapGraph(data,leftTopComplete){
     this.graphData = data; // nested array of ImageOverlapNodes
     // TODO make an alternate constructor for dummy nodes
     this.startNode         = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
@@ -172,51 +205,74 @@ function ImageOverlapGraph(data){
     this.goalNode.relX     = 999;
     this.goalNode.relY     = 999;
 
-    // Tree structure from the start node
-    //            n       start node
-    //          / | \
-    //        n   n   n   nodes
-    //        | X | X |
-    //        1   2   3   ...
-    //        | X | X |
-    //        n   n   n   ...
-    //         \  |  /
-    //            n       goal node
+    if (leftTopComplete == "left"){
+        // Deal with the start node neighbors: y=0 row in the graph
+        for (var x = 0; x < this.graphData[0].length; x++) {
+            this.startNode.neighbors.push(this.graphData[0][x]);
+        }
 
-    // Deal with the start node neighbors: y=0 row in the graph
-    for (var x = 0; x < this.graphData[0].length; x++) {
-        this.startNode.neighbors.push(this.graphData[0][x]);
-    }
+        // Deal with all of the nested nodes except the last row
+        for (var y = 0; y < this.graphData.length - 1; y++) {
+            for (var x = 0; x < this.graphData[y].length; x++) {
+                node = this.graphData[y][x];
+                node.relX = x;
+                node.relY = y;
 
-    // Deal with all of the nested nodes except the last row
-    for (var y = 0; y < this.graphData.length - 1; y++) {
-        for (var x = 0; x < this.graphData[y].length; x++) {
-            node = this.graphData[y][x];
-            node.relX = x;
-            node.relY = y;
+                if (x > 0) {
+                    node.neighbors.push(this.graphData[y+1][x-1]);
+                }
 
-            if (x > 0) {
-                node.neighbors.push(this.graphData[y+1][x-1]);
+                var rowLength = this.graphData[y].length;
+                if (x < (rowLength - 1)) {
+                    node.neighbors.push(this.graphData[y+1][x+1]);
+                } 
+
+                node.neighbors.push(this.graphData[y+1][x]);
             }
+        }
 
-            var rowLength = this.graphData[y].length;
-            if (x < (rowLength - 1)) {
-                node.neighbors.push(this.graphData[y+1][x+1]);
-            } 
+        var lastY = this.graphData.length - 1;
+        // Deal with the last full set of nodes before the goal
+        for (var x = 0; x < this.graphData[lastY].length; x++) {
+            node = this.graphData[lastY][x];
+            node.relX = x;
+            node.relY = lastY;
+            node.neighbors.push(this.goalNode);
+        }
+    } else if (leftTopComplete == "top"){
+        // Deal with the start node neighbors: x=0 column in the graph
+        for (var y = 0; y < this.graphData.length; y++) {
+            this.startNode.neighbors.push(this.graphData[y][0]);
+        }
 
-            node.neighbors.push(this.graphData[y+1][x]);
+        // Deal with all of the nested nodes except the last row
+        for (var x = 0; x < this.graphData[0].length - 1; x++) {
+            for (var y = 0; y < this.graphData.length; y++) {
+                node = this.graphData[y][x];
+                node.relX = x;
+                node.relY = y;
+
+                if (y > 0) {
+                    node.neighbors.push(this.graphData[y-1][x+1]);
+                }
+
+                if (y < (this.graphData.length - 1)) {
+                    node.neighbors.push(this.graphData[y+1][x+1]);
+                } 
+
+                node.neighbors.push(this.graphData[y][x+1]);
+            }
+        }
+
+        var lastX = this.graphData[0].length - 1;
+        // Deal with the last full set of nodes before the goal
+        for (var y = 0; y < this.graphData.length; y++) {
+            node = this.graphData[y][lastX];
+            node.relX = lastX;
+            node.relY = y;
+            node.neighbors.push(this.goalNode);
         }
     }
-
-    var lastY = this.graphData.length - 1;
-    // Deal with the last full set of nodes before the goal
-    for (var x = 0; x < this.graphData[lastY].length; x++) {
-        node = this.graphData[lastY][x];
-        node.relX = x;
-        node.relY = lastY;
-        node.neighbors.push(this.goalNode);
-    }
-
     // Now we have the best path in relative pixel coordinates.
     this.bestpath = this.shortestPath();
     
