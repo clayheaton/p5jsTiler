@@ -67,7 +67,10 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
         thisSample.y = (this.currentRow*thisSample.h)    - (this.currentRow * this.overlapH);
         canvasSample = new ImageSample(get(thisSample.x - this.overlapW, thisSample.y - this.overlapH,thisSample.w,thisSample.h));
-        thisSample   = this.findCompleteSeamFor(thisSample,canvasSample);
+
+        // Hmm...
+        thisSample   = this.findLeftSeamFor(thisSample,canvasSample);
+        thisSample   = this.findTopSeamFor(thisSample,canvasSample);
     }
     // console.log("    (" + thisSample.x + ", " + thisSample.y + ")");
 
