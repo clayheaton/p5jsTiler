@@ -102,7 +102,9 @@ ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample){
         graphData.push(thisRow);
     }
 
-    var seamGraph = new ImageOverlapGraph(graphData);
+    var seam = new ImageOverlapGraph(graphData);
+
+    
 
     return sample;
 };
@@ -130,11 +132,7 @@ function ImageSample(theImage){
     // The position of the upper left corner
     this.x     = 0;
     this.y     = 0;
-
-
-
     this.image.loadPixels();
-
 }
 ImageSample.prototype.get = function(x,y) {
     return this.image.get(x,y);
@@ -165,14 +163,14 @@ ImageSampleMaker.prototype.makeSample = function(sourceImage){
 function ImageOverlapGraph(data){
     this.graphData = data; // nested array of ImageOverlapNodes
     // TODO make an alternate constructor for dummy nodes
-    var startNode     = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
-    var goalNode      = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
-    startNode.isStart = true;
-    startNode.relX    = -1;
-    startNode.relY    = -1;
-    goalNode.isGoal   = true;
-    goalNode.relX     = 999;
-    goalNode.relY     = 999;
+    this.startNode         = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
+    this.goalNode          = new ImageOverlapNode([0,0,0,0],[0,0,0,0]);
+    this.startNode.isStart = true;
+    this.startNode.relX    = -1;
+    this.startNode.relY    = -1;
+    this.goalNode.isGoal   = true;
+    this.goalNode.relX     = 999;
+    this.goalNode.relY     = 999;
 
     // Tree structure from the start node
     //            n       start node
@@ -187,7 +185,7 @@ function ImageOverlapGraph(data){
 
     // Deal with the start node neighbors: y=0 row in the graph
     for (var x = 0; x < this.graphData[0].length; x++) {
-        startNode.neighbors.push(this.graphData[0][x]);
+        this.startNode.neighbors.push(this.graphData[0][x]);
     }
 
     // Deal with all of the nested nodes except the last row
@@ -197,23 +195,15 @@ function ImageOverlapGraph(data){
             node.relX = x;
             node.relY = y;
 
-            // console.log("(x,y): (" + x + ", " + y + ")" );
-
             if (x > 0) {
-                // Case 1 (above) does not get this.
-                // console.log("case 2 or 3");
                 node.neighbors.push(this.graphData[y+1][x-1]);
             }
 
             var rowLength = this.graphData[y].length;
-            // console.log(rowLength);
-
             if (x < (rowLength - 1)) {
-                // Case 3 (above) does not get this.
-                // console.log("case 1 or 2")
                 node.neighbors.push(this.graphData[y+1][x+1]);
             } 
-            // All nodes get the node below
+
             node.neighbors.push(this.graphData[y+1][x]);
         }
     }
@@ -224,23 +214,30 @@ function ImageOverlapGraph(data){
         node = this.graphData[lastY][x];
         node.relX = x;
         node.relY = lastY;
-        node.neighbors.push(goalNode);
+        node.neighbors.push(this.goalNode);
     }
 
+    // Now we have the best path in relative pixel coordinates.
+    this.bestpath = this.shortestPath();
+    
+    return this.bestpath;
+
+}
+ImageOverlapGraph.prototype.shortestPath = function(){
     // Use this for a HashMap: https://github.com/flesler/hashmap
 
     // At this point we have a complete graph
     // Use Dijkstra's Algorithm - maybe A* in the future.
     // http://www.redblobgames.com/pathfinding/a-star/introduction.html
-    frontier = new PriorityQueue({ comparator: function(a, b) { return a.priority - b.priority; }}); // Correct?
-    startNode.priority = 0;
-    frontier.queue(startNode);
+    var frontier = new PriorityQueue({ comparator: function(a, b) { return a.cost - b.cost; }}); // Correct?
+    frontier.queue(this.startNode);
 
-    came_from   = new HashMap();
-    cost_so_far = new HashMap();
+    var came_from   = new HashMap();
+    came_from.set(this.startNode,"start"); 
 
-    came_from.set(startNode,"start"); 
-    cost_so_far.set(startNode,0);
+    var cost_so_far = new HashMap();
+
+    cost_so_far.set(this.startNode,0);
 
     while (frontier.length > 0) {
         current = frontier.dequeue();
@@ -252,7 +249,8 @@ function ImageOverlapGraph(data){
             new_cost = cost_so_far.get(current) + next.cost;
             if (!cost_so_far.has(next) || new_cost < cost_so_far.get(next)) {
                 cost_so_far.set(next,new_cost);
-                frontier.queue(next,new_cost);
+                next.cost = new_cost;
+                frontier.queue(next);
                 came_from.set(next,current);
             }
         }
@@ -261,17 +259,23 @@ function ImageOverlapGraph(data){
     // The seam is stored in came_from by using goalNode as the key
     // and getting the node returned as the value for where it came from.
     var working = true;
-    current = goalNode;
+    current = this.goalNode;
+
+    var path = [];
+
     while(true){
-        s = current.testDesc();
-        console.log(s + ", " + cost_so_far.get(current));
+        if (!current.isGoal && !current.isStart) {
+            coords = [current.relX,current.relY];
+            path.push(coords);
+        }       
+        // console.log(s + ", " + cost_so_far.get(current));
         if (current.isStart) {
             working = false;
             break;
         }
         current = came_from.get(current);
     }
-    console.log("test");
+    return path;
 }
 
 
