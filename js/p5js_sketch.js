@@ -1,7 +1,7 @@
 var exampleSelect, confirmButton, quiltedTestImage;
 var imageQuilter;
 var activeSet;
-var sourceImages   = [];
+var sourceImages = [];
 
 var reviewSelected       = false;
 var performImageQuilting = false;
@@ -13,27 +13,12 @@ var drawBackground = true;
 var draggingImages = true;
 
 function setup() {
-  var c = createCanvas(1000, 450); // 650 tall is better
+  var c = createCanvas(700, 500); // 650 tall is better
+  c.parent('quilter_block')
   stroke(0); 
   fill(150);
-  // frameRate(2);
-  // What is our pixel density? Retina screen?
-  // console.log(pixelDensity());
 
-  // Establish the drop down of examples
-  exampleSelect = createSelect();
-  exampleSelect.position(10,10);
-  var keys = Object.keys(exampleDict);
-  for(k in keys){
-    exampleSelect.option(keys[k]);
-  }
-  exampleSelect.changed(exampleChangedEvent);
-
-  // After selection of an image set, this will advance to quilting
-  confirmButton = createButton('Confirm and Quilt Image');
-  confirmButton.position(165, 10);
-  confirmButton.mousePressed(confirmQuiltButtonClicked);
-  confirmButton.hide();
+  setupExampleButtons();
 
   // If the user drag/drops images onto the canvas.
   c.drop(processDraggedFile)
@@ -46,9 +31,7 @@ function draw() {
 
   if (reviewSelected) {
     for (var i = 0; i < sourceImages.length; i++) {
-        // image(img,[sx=0],[sy=0],[sWidth=img.width],[sHeight=img.height],[dx=0],[dy=0],[dWidth],[dHeight])
-        // Doesn't look great - consider scaling
-        image(sourceImages[i],0,0,150,150,10 + (i*155),30,150,150);
+        image(sourceImages[i],0,0,150,150,10 + (i*155),10,150,150);
       }
     }
 
@@ -61,17 +44,7 @@ function draw() {
         performImageQuilting = false;
       // TODO: Move to next state here. Function that adds a button, etc.
     } else {
-      // TODO: Refactor so that this isn't such a mess with passing image samples around.
-      // Since I can get the canvas from the ImageQuilter class, maybe just move it there? 
-
-      // 1. Get the next sample
-      // 2. Get a sample from the canvas matching the overlap
-      //     Use variables needsLeftOverlap, needsTopOverlap, and needsCompleteOverlap
-      // 3. Set the canvas sample to the next sample and it will use the sent data to determine pixels to keep
-      // 4. place the next sample
       sample = imageQuilter.nextQuiltingSample();
-
-      // Place the image
       image(sample.image,sample.x,sample.y);
     }
   }
@@ -79,10 +52,32 @@ function draw() {
 
 
 
+function setupExampleButtons(){
+  // Establish the drop down of examples
+  var sampleSelectDiv = document.getElementById('sample_select');
+  exampleSelect       = createSelect();
+  exampleSelect.addClass('form-control input-sm');
+  exampleSelect.parent(sampleSelectDiv);
+  
+  var keys = Object.keys(exampleDict);
+
+  for(k in keys){
+    exampleSelect.option(keys[k]);
+  }
+  exampleSelect.changed(exampleChangedEvent);
+
+  // After selection of an image set, this will advance to quilting
+  var buttonDiv = document.getElementById('sample_select_button');
+  confirmButton = createButton('Confirm and Quilt Image');
+  confirmButton.addClass('btn btn-primary btn-sm');
+  confirmButton.parent(buttonDiv);
+  confirmButton.mousePressed(confirmQuiltButtonClicked);
+  confirmButton.hide();
+}
 
 
 function exampleChangedEvent(){
-  var item = exampleSelect.value();
+  var item  = exampleSelect.value();
   activeSet = exampleDict[item];
 
     // Empty current source images
@@ -133,7 +128,7 @@ function exampleChangedEvent(){
 
     function createQuiltedImage(){
   // TODO: Allow the user to change parameters.
-  imageQuilter = new ImageQuilter(sourceImages, 100, 100, 100,0.2,width,height);
+  imageQuilter = new ImageQuilter(sourceImages, 60, 60,0.3,width,height, false);
 }
 
 

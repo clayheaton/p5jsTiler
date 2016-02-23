@@ -1,7 +1,7 @@
 // Quilts an image based on samples from one or more sources.
 var testNode;
 
-function ImageQuilter(sourceImagesArray, sampleW, sampleH, numSamples, overlapPercent,widthToQuilt,heightToQuilt){
+function ImageQuilter(sourceImagesArray, sampleW, sampleH, overlapPercent,widthToQuilt,heightToQuilt, debugMode){
     this.sourceImages    = sourceImagesArray;
     this.imageSamples    = [];
     this.overlapPercent  = overlapPercent;
@@ -15,7 +15,7 @@ function ImageQuilter(sourceImagesArray, sampleW, sampleH, numSamples, overlapPe
     this.currentColumn   = 0;
     this.completed       = false;
     this.maxErrorPercent = 10;
-    this.debug           = false;
+    this.debug           = debugMode;
     this.allowedDepth    = 5;
 
     // Assuming square samples at the moment
@@ -31,8 +31,6 @@ function ImageQuilter(sourceImagesArray, sampleW, sampleH, numSamples, overlapPe
 
     // TODO: The images might not all be the same dimensions. Check and set w and h accordingly.
     this.sampleMaker  = new ImageSampleMaker(sampleW, sampleH);
-    this.numSamples   = numSamples;
-
 }
 ImageQuilter.prototype.getRandomImageSample = function(){
     x = parseInt(random(0, this.imageSamples.length - 1))

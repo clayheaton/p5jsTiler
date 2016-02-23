@@ -1,18 +1,70 @@
-<html>
-<head>
-  <meta charset="UTF-8">
-  <script language="javascript" type="text/javascript" src="libraries/p5.js"></script>
-  <script language="javascript" src="libraries/p5.dom.js"></script>
-  <script language="javascript" type="text/javascript" src="priority-queue.min.js"></script>
-  <!-- https://github.com/flesler/hashmap -->
-  <script language="javascript" type="text/javascript" src="hashmap.js"></script>
-  <script language="javascript" type="text/javascript" src="p5js_setupExamples.js"></script>
-  <script language="javascript" type="text/javascript" src="p5js_sketch.js"></script>
-  <script language="javascript" type="text/javascript" src="p5js_imageQuilter.js"></script>
-  <!-- this line removes any default padding and style. you might only need one of these values set. -->
-  <style> body {padding: 0; margin: 0;} </style>
-</head>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Image Quilting and Wang Tile Generation</title>
 
-<body>
-</body>
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/custom.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+     
+      <div class="row">
+        <h3>Image Quilter</h3>
+      </div>
+
+      <div class="row" id="examples_row">
+        <h4><small>Quilt images and create Wang Tiles for fun and profit.</small></h4>
+      </div>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="row">
+            <div class="col-md-3 no-left-padding">
+
+              <div class="bs-callout bs-callout-primary no-top-margin">
+                <h4>How To...</h4>
+                Drag one or more images onto the canvas to the right or use the controls below to view examples.
+              </div>
+              
+              <div class="no-left-padding" id="sample_select">
+              </div>
+              <br />
+              <div class="no-left-padding" id="sample_select_button">
+              </div>
+            </div>
+            <div class="col-md-9 no-left-padding" id="quilter_block">
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) 
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+     Include all compiled plugins (below), or include individual files as needed 
+    <script src="js/bootstrap.min.js"></script> -->
+  <script language="javascript" type="text/javascript" src="js/p5.js"></script>
+  <script language="javascript" type="text/javascript" src="js/p5.dom.js"></script>
+  <script language="javascript" type="text/javascript" src="js/priority-queue.min.js"></script>
+  <!-- https://github.com/flesler/hashmap -->
+  <script language="javascript" type="text/javascript" src="js/hashmap.js"></script>
+  <script language="javascript" type="text/javascript" src="js/p5js_setupExamples.js"></script>
+  <script language="javascript" type="text/javascript" src="js/p5js_sketch.js"></script>
+  <script language="javascript" type="text/javascript" src="js/p5js_imageQuilter.js"></script>
+  </body>
 </html>
