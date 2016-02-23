@@ -15,6 +15,8 @@ function ImageQuilter(sourceImagesArray, sampleW, sampleH, numSamples, overlapPe
     this.currentColumn   = 0;
     this.completed       = false;
     this.maxErrorPercent = 10;
+    this.debug           = false;
+    this.allowedDepth    = 5;
 
     // Assuming square samples at the moment
     // Keep overlapPercent below 0.5
@@ -50,26 +52,23 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
     } else if (this.currentRow == 0) {
         thisSample.y = 0;
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
+        thisSample.adjustError();
         canvasSample = new ImageSample(get(thisSample.x - this.overlapW, thisSample.y,this.overlapW,thisSample.h));
-        thisSample   = this.findLeftSeamFor(thisSample,canvasSample, this.maxErrorPercent);
+        thisSample   = this.findLeftSeamFor(thisSample,canvasSample, this.maxErrorPercent, 0);
 
     } else if (this.currentColumn == 0) {
         thisSample.x = 0;
         thisSample.y = (this.currentRow*thisSample.h) - (this.currentRow * this.overlapH);
+        thisSample.adjustError();
         canvasSample = new ImageSample(get(thisSample.x, thisSample.y - this.overlapH,thisSample.w,this.overlapH));
-        thisSample   = this.findTopSeamFor(thisSample,canvasSample, this.maxErrorPercent);
+        thisSample   = this.findTopSeamFor(thisSample,canvasSample, this.maxErrorPercent, 0);
 
     } else {
         thisSample.x = (this.currentColumn*thisSample.w) - (this.currentColumn * this.overlapW);
         thisSample.y = (this.currentRow*thisSample.h)    - (this.currentRow * this.overlapH);
+        thisSample.adjustError();
         canvasSample = new ImageSample(get(thisSample.x - this.overlapW, thisSample.y - this.overlapH,thisSample.w,thisSample.h));
-
-        
-        thisSample   = this.findLeftSeamFor(thisSample,canvasSample, this.maxErrorPercent);
-        thisSample   = this.findTopSeamFor(thisSample,canvasSample, this.maxErrorPercent);
-
-        // TESTING - REMOVE
-        //thisSample   = this.findCompleteSeamFor(thisSample,canvasSample, this.maxErrorPercent);
+        thisSample   = this.findCompleteSeamFor(thisSample,canvasSample, this.maxErrorPercent, 0);
     }
     // console.log("    (" + thisSample.x + ", " + thisSample.y + ")");
 
@@ -88,8 +87,9 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
 
     return thisSample;
 };
-ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample, errPercentAllowed){
+ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample, errPercentAllowed, depth){
     // This handles the top row only.
+    // depth is for managing recursion that can be too deep.
 
     var graphData = [];
 
@@ -104,19 +104,25 @@ ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample, errPerce
         graphData.push(thisRow);
     }
 
-    var graph = new ImageOverlapGraph(graphData,"left");
+    var graph = new ImageOverlapGraph(graphData,"left", this.overlapH, this.overlapW);
     var seam  = graph.findSeam();
 
-    // TODO: Fix the last row; some pixels are off screen so the error is higher.
-    if (graph.errorPercentage > errPercentAllowed) {
-        sampIndex = parseInt(random(0,this.sourceImages.length - 0.01));
-        newsample = this.sampleMaker.makeSample(this.sourceImages[sampIndex]);
-        newsample.y = (this.currentRow*newsample.h)   - (this.currentRow * this.overlapH);
-        newsample.x = (this.currentColumn*newsample.w) - (this.currentColumn * this.overlapW);
-        newErrorPercentAllowed = errPercentAllowed + 0.5;
-        console.log("LEFT error " + graph.errorPercentage + ". New errPercentAllowed: " + newErrorPercentAllowed);
-        // console.log("newsample.x: " + newsample.x + ", newsample.y: " + newsample.y);
-        return this.findLeftSeamFor(newsample, canvasSample, newErrorPercentAllowed);
+    var adjustedError = graph.errorPercentage;
+    if (this.currentColumn == this.columns - 1) {
+        adjustedError = adjustedError * sample.dangleRightErrorMultiplier;
+    } 
+    
+    // Try another sample if the error is too high. 
+    if (depth < this.allowedDepth){
+        if (adjustedError > errPercentAllowed) {
+            sampIndex = parseInt(random(0,this.sourceImages.length - 0.01));
+            newsample = this.sampleMaker.makeSample(this.sourceImages[sampIndex]);
+            newsample.y = (this.currentRow*newsample.h)   - (this.currentRow * this.overlapH);
+            newsample.x = (this.currentColumn*newsample.w) - (this.currentColumn * this.overlapW);
+            newsample.adjustError();
+            newErrorPercentAllowed = errPercentAllowed + 0.5;
+            return this.findLeftSeamFor(newsample, canvasSample, newErrorPercentAllowed, depth + 1);
+        }
     }
 
     for (var i = 0; i < seam.length; i++) {
@@ -124,14 +130,18 @@ ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample, errPerce
         var y = seam[i][1];
         for (var p = 0; p < x; p++) {
             // Set the pixel transparent
-            sample.image.set(p,y,color(0,0,255,150));
+            if (this.debug) {
+                sample.image.set(p,y,color(0,0,255,150));
+            } else {
+                sample.image.set(p,y,color(0,0,255,0));
+            }
         }
     }
     sample.image.updatePixels();
 
     return sample;
 };
-ImageQuilter.prototype.findTopSeamFor = function(sample, canvasSample, errPercentAllowed){
+ImageQuilter.prototype.findTopSeamFor = function(sample, canvasSample, errPercentAllowed, depth){
     var graphData = [];
 
     for (var y = 0; y < this.overlapH; y++) {
@@ -145,19 +155,20 @@ ImageQuilter.prototype.findTopSeamFor = function(sample, canvasSample, errPercen
         graphData.push(thisRow);
     }
 
-    var graph = new ImageOverlapGraph(graphData,"top");
+    var graph = new ImageOverlapGraph(graphData,"top", this.overlapH, this.overlapW);
     var seam  = graph.findSeam();
 
         // TODO: Fix the last row; some pixels are off screen so the error is higher.
-    if (graph.errorPercentage > errPercentAllowed) {
-        sampIndex = parseInt(random(0,this.sourceImages.length - 0.01));
-        newsample = this.sampleMaker.makeSample(this.sourceImages[sampIndex]);
-        newsample.y = (this.currentRow*newsample.h)   - (this.currentRow * this.overlapH);
-        newsample.x = (this.currentColumn*newsample.w) - (this.currentColumn * this.overlapW);
-        newErrorPercentAllowed = errPercentAllowed + 0.5;
-        console.log("TOP error " + graph.errorPercentage + ". New errPercentAllowed: " + newErrorPercentAllowed);
-        // console.log("newsample.x: " + newsample.x + ", newsample.y: " + newsample.y);
-        return this.findTopSeamFor(newsample, canvasSample, newErrorPercentAllowed);
+    if (depth < this.allowedDepth){
+        if (graph.errorPercentage > errPercentAllowed) {
+            sampIndex = parseInt(random(0,this.sourceImages.length - 0.01));
+            newsample = this.sampleMaker.makeSample(this.sourceImages[sampIndex]);
+            newsample.y = (this.currentRow*newsample.h)   - (this.currentRow * this.overlapH);
+            newsample.x = (this.currentColumn*newsample.w) - (this.currentColumn * this.overlapW);
+            newsample.adjustError();
+            newErrorPercentAllowed = errPercentAllowed + 0.5;
+            return this.findTopSeamFor(newsample, canvasSample, newErrorPercentAllowed, depth + 1);
+        }
     }
 
     for (var i = 0; i < seam.length; i++) {
@@ -165,14 +176,18 @@ ImageQuilter.prototype.findTopSeamFor = function(sample, canvasSample, errPercen
         var y = seam[i][1];
         for (var p = 0; p < y; p++) {
             // Set the pixel transparent
-            sample.image.set(x,p,color(255,0,0,150));
+            if (this.debug) {
+                sample.image.set(x,p,color(255,0,0,150));   
+            } else {
+                sample.image.set(x,p,color(255,0,0,0));
+            }
         }
     }
     sample.image.updatePixels();
 
     return sample;
 };
-ImageQuilter.prototype.findCompleteSeamFor = function(sample, canvasSample, errPercentAllowed){
+ImageQuilter.prototype.findCompleteSeamFor = function(sample, canvasSample, errPercentAllowed, depth){
     var graphData = [];
 
     for (var y = 0; y < this.sampleH; y++){
@@ -187,7 +202,77 @@ ImageQuilter.prototype.findCompleteSeamFor = function(sample, canvasSample, errP
         }
         graphData.push(thisRow);
     }
-    console.log("complete seam");
+
+    var graph = new ImageOverlapGraph(graphData,"complete", this.overlapH, this.overlapW);
+    var seam  = graph.findSeam();
+
+    var adjustedError = graph.errorPercentage;
+    if (this.currentColumn == this.columns - 1) {
+        adjustedError = adjustedError * sample.dangleRightErrorMultiplier;
+        // TODO: Adjust the errPercentAllowed?
+    }
+    if (this.currentRow == this.rows - 1) {
+        adjustedError = adjustedError * sample.dangleBottomErrorMultiplier;
+    }
+
+    // Skip error checking and put something in place if we are beyond allowed depth.
+    if (depth < this.allowedDepth){
+        if (adjustedError > errPercentAllowed) {
+            sampIndex = parseInt(random(0,this.sourceImages.length - 0.01));
+            newsample = this.sampleMaker.makeSample(this.sourceImages[sampIndex]);
+            newsample.y = (this.currentRow*newsample.h)   - (this.currentRow * this.overlapH);
+            newsample.x = (this.currentColumn*newsample.w) - (this.currentColumn * this.overlapW);
+            newsample.adjustError();
+            newErrorPercentAllowed = errPercentAllowed + 0.5;
+            return this.findCompleteSeamFor(newsample, canvasSample, newErrorPercentAllowed, depth + 1);
+        }
+    } else {
+        console.log("exceeded max depth for complete seam finding.")
+    }
+
+
+    // Replace pixels with transparent color
+    for (var i = 0; i < seam.length; i++){
+        var x = seam[i][0];
+        var y = seam[i][1];
+
+        // The left side
+        if (y >= this.overlapH) {
+            for (var p = 0; p < x; p++){
+                if (this.debug) {
+                    sample.image.set(p,y,color(255,0,255,150));
+                } else {
+                    sample.image.set(p,y,color(255,0,255,0));
+                }
+            }
+        } 
+
+        // The top
+        if (x >= this.overlapW) {
+            for (var p = 0; p < y; p++){
+                if (this.debug) {
+                    sample.image.set(x,p,color(255,0,255,150));
+                } else {
+                    sample.image.set(x,p,color(255,0,255,0));
+                }
+            }
+        }
+
+        // The corner - improve detection here. Paths might be funkier
+        if (x <= this.overlapW && y <= this.overlapH) {
+            for (var px = 0; px < x; px++){
+                for (var py = 0; py < y; py++) {
+                    if (this.debug) {
+                        sample.image.set(px,py,color(255,0,255,150));
+                    } else {
+                        sample.image.set(px,py,color(255,0,255,0));
+                    }
+                }
+            }
+        }
+    }
+    sample.image.updatePixels();
+    return sample;
 }
 
 // TESTING
@@ -208,9 +293,24 @@ function ImageSample(theImage){
     this.x     = 0;
     this.y     = 0;
     this.image.loadPixels();
+
+    // These reduce the graph error value when the samples hang off of the canvas.
+    this.dangleRightErrorMultiplier  = 1;
+    this.dangleBottomErrorMultiplier = 1;
 }
 ImageSample.prototype.get = function(x,y) {
     return this.image.get(x,y);
+}
+ImageSample.prototype.adjustError = function (){
+    if (this.x + this.w > width) {
+        var percent = (this.w - (this.x + this.w - width)) / this.w;
+        this.dangleRightErrorMultiplier = percent;
+    }
+
+    if (this.y + this.h > height) {
+        var percent = (this.h - (this.y + this.h - height)) / this.h;
+        this.dangleBottomErrorMultiplier = percent;
+    }
 }
 
 
@@ -235,7 +335,7 @@ ImageSampleMaker.prototype.makeSample = function(sourceImage){
 
 
 
-function ImageOverlapGraph(data,leftTopComplete){
+function ImageOverlapGraph(data, leftTopComplete, overlapH, overlapW){
     this.graphData = data; // nested array of ImageOverlapNodes
     this.whichSeam = leftTopComplete;
     // TODO make an alternate constructor for dummy nodes
@@ -250,6 +350,8 @@ function ImageOverlapGraph(data,leftTopComplete){
     this.maxErrorValue     = 0;
     this.errorValue        = 0;
     this.errorPercentage   = 0;
+    this.overlapH          = overlapH;
+    this.overlapW          = overlapW;
 }
 ImageOverlapGraph.prototype.findSeam = function(){
 
@@ -321,9 +423,120 @@ ImageOverlapGraph.prototype.findSeam = function(){
             node.neighbors.push(this.goalNode);
         }
     } else if (this.whichSeam == "complete") {
+        // Deal with the bottom row of nodes on the lower-left: the start
+        lastrow = this.graphData.length - 1;
+        nodesInLastRow = this.graphData[lastrow].length;
+        for (var x = 0; x < nodesInLastRow; x++) {
+            this.startNode.neighbors.push(this.graphData[lastrow][x]);
+        }
 
+        // Deal with the nested nodes on the left
+        for (var y = this.overlapH; y < this.graphData.length; y++) {
+            // graphData[y].length below instead of this.overlapH?
+            for (var x = 0; x < this.overlapH; x++) {
+                node      = this.graphData[y][x];
+                node.relX = x;
+                node.relY = y;
+
+                if (x > 0) {
+                    node.neighbors.push(this.graphData[y-1][x-1]);
+                }
+
+                var rowLength = this.graphData[y].length;
+                if (x < (rowLength - 1)) {
+                    node.neighbors.push(this.graphData[y-1][x+1]);
+                } 
+
+                node.neighbors.push(this.graphData[y-1][x]);
+            }
+        }
+
+        // Deal with the overlapping corner nodes in the upper-left
+        for (var x = 0; x < this.overlapW; x++) {
+            for (var y = 0; y < this.overlapH; y++){
+                node = this.graphData[y][x];
+                node.relX = x;
+                node.relY = y;
+
+                if (y == 0) {
+                    // TODO: Add a condition requiring the overlapW and overlapH to be at least 2 each.
+                    node.neighbors.push(this.graphData[y][x+1]);
+                    node.neighbors.push(this.graphData[y+1][x]);
+                    node.neighbors.push(this.graphData[y+1][x+1]);
+                    continue;
+                }
+
+                if (y == this.overlapH - 1 && y > 0) {
+                    node.neighbors.push(this.graphData[y-1][x]);
+                    node.neighbors.push(this.graphData[y-1][x+1]);
+                    node.neighbors.push(this.graphData[y][x+1]);
+                    if (x > 0) {
+                        node.neighbors.push(this.graphData[y-1][x-1]);
+                    }
+                    continue;
+                }
+
+                if (x == this.overlapW - 1 && y > 0) {
+                    if (y < this.overlapH - 1) {
+                        node.neighbors.push(this.graphData[y+1][x+1]);
+                    }
+                    node.neighbors.push(this.graphData[y-1][x+1]);
+                    node.neighbors.push(this.graphData[y][x+1]);
+                    continue;
+                }
+
+                if (x == 0 && y > 0 && y < this.overlapH - 1){
+                    node.neighbors.push(this.graphData[y-1][x+1]);
+                    node.neighbors.push(this.graphData[y][x+1]);
+                    node.neighbors.push(this.graphData[y+1][x+1]);
+                    continue;
+                }
+
+                // Filling in the middle nodes
+                if (x > 0 && y > 0 && x < this.overlapW - 1 && y < this.overlapH - 1) {
+                    // node.neighbors.push(this.graphData[y-1][x-1]);
+                    node.neighbors.push(this.graphData[y-1][x]);
+                    node.neighbors.push(this.graphData[y-1][x+1]);
+                    node.neighbors.push(this.graphData[y][x+1]);
+                    node.neighbors.push(this.graphData[y+1][x+1]);
+                    node.neighbors.push(this.graphData[y+1][x]);
+                    // node.neighbors.push(this.graphData[y+1][x-1]);
+                    // node.neighbors.push(this.graphData[y][x-1]);
+                    continue;
+                }
+            }
+        }
+
+
+        // Deal with the nested nodes on the top
+        for (var x = this.overlapW; x < this.graphData[0].length - 1; x++) {
+            for (var y = 0; y < this.overlapH; y++) {
+                node = this.graphData[y][x];
+                node.relX = x;
+                node.relY = y;
+
+                if (y > 0) {
+                    node.neighbors.push(this.graphData[y-1][x+1]);
+                }
+
+                if (y < (this.overlapH - 1)) {
+                    node.neighbors.push(this.graphData[y+1][x+1]);
+                } 
+
+                node.neighbors.push(this.graphData[y][x+1]);
+            }
+        }
+
+        // Deal with the final column of nodes at the upper-right: the end
+        var lastX = this.graphData[0].length - 1;
+        for (var y = 0; y < this.overlapH; y++){
+            node = this.graphData[y][lastX];
+            node.relX = lastX;
+            node.relY = y;
+            node.neighbors.push(this.goalNode);
+        }
     }
-    
+
     // Now we have the best path in relative pixel coordinates.
     this.bestpath = this.shortestPath();
     

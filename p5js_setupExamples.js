@@ -13,9 +13,11 @@ var marsSet       = ['img/mars/mars1.png',
 var muddyWaterSet = ['img/muddywater/muddywater1.png'];
 var pinkFlowerSet = ['img/pinkflowers/pinkflowers1.png'];
 var waterSet      = ['img/water/water1.png'];
+var barkSet       = ['img/bark/bark1.png'];
 
 var exampleDict   = {
     'Select an Example Set' : null,
+    'Bark'         : barkSet,
     'Cracked Mud'  : crackedMudSet,
     'Grass'        : grassSet,
     'Grass - Long' : grassLongSet,
