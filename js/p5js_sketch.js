@@ -13,7 +13,7 @@ var drawBackground = true;
 var draggingImages = true;
 
 function setup() {
-  var c = createCanvas(700, 500); // 650 tall is better
+  var c = createCanvas(735, 500); // 650 tall is better
   c.parent('quilter_block')
   stroke(0); 
   fill(150);
