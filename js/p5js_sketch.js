@@ -128,7 +128,7 @@ function exampleChangedEvent(){
 
     function createQuiltedImage(){
   // TODO: Allow the user to change parameters.
-  imageQuilter = new ImageQuilter(sourceImages, 60, 60,0.3,width,height, false);
+  imageQuilter = new ImageQuilter(sourceImages, 100, 100,0.1,width,height, false);
 }
 
 

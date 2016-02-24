@@ -1,5 +1,5 @@
 // Quilts an image based on samples from one or more sources.
-var testNode;
+var testNode, testErrors, testErrorsMin, testErrorsMax, testRequiltCount;
 
 function ImageQuilter(sourceImagesArray, sampleW, sampleH, overlapPercent,widthToQuilt,heightToQuilt, debugMode){
     this.sourceImages    = sourceImagesArray;
@@ -14,9 +14,15 @@ function ImageQuilter(sourceImagesArray, sampleW, sampleH, overlapPercent,widthT
     this.currentRow      = 0;
     this.currentColumn   = 0;
     this.completed       = false;
-    this.maxErrorPercent = 10;
+    this.maxErrorPercent = 3;
     this.debug           = debugMode;
-    this.allowedDepth    = 5;
+    this.allowedDepth    = 10;
+
+    // TODO: Remove
+    testErrors       = [];
+    this.testErrorsMin    = 999;
+    this.testErrorsMax    = -999;
+    this.testRequiltCount = 0;
 
     // Assuming square samples at the moment
     // Keep overlapPercent below 0.5
@@ -81,6 +87,12 @@ ImageQuilter.prototype.nextQuiltingSample = function(){
     // Check if we're finished (the row number will be too high)
     if (this.currentRow == this.rows) {
         this.completed = true;
+        // Remove
+        for (var i = 0; i < testErrors.length; i++){
+            this.testErrorsMax = testErrors[i] > this.testErrorsMax ? testErrors[i] : this.testErrorsMax;
+            this.testErrorsMin = testErrors[i] < this.testErrorsMin ? testErrors[i] : this.testErrorsMin;
+        }
+        console.log("testErrorsMin: " + this.testErrorsMin + ", testErrorsMax: " + this.testErrorsMax + ", testRequiltCount: " + this.testRequiltCount);
     }
 
     return thisSample;
@@ -119,6 +131,7 @@ ImageQuilter.prototype.findLeftSeamFor = function(sample, canvasSample, errPerce
             newsample.x = (this.currentColumn*newsample.w) - (this.currentColumn * this.overlapW);
             newsample.adjustError();
             newErrorPercentAllowed = errPercentAllowed + 0.5;
+            this.testRequiltCount += 1;
             return this.findLeftSeamFor(newsample, canvasSample, newErrorPercentAllowed, depth + 1);
         }
     }
@@ -165,6 +178,7 @@ ImageQuilter.prototype.findTopSeamFor = function(sample, canvasSample, errPercen
             newsample.x = (this.currentColumn*newsample.w) - (this.currentColumn * this.overlapW);
             newsample.adjustError();
             newErrorPercentAllowed = errPercentAllowed + 0.5;
+            this.testRequiltCount += 1;
             return this.findTopSeamFor(newsample, canvasSample, newErrorPercentAllowed, depth + 1);
         }
     }
@@ -222,6 +236,7 @@ ImageQuilter.prototype.findCompleteSeamFor = function(sample, canvasSample, errP
             newsample.x = (this.currentColumn*newsample.w) - (this.currentColumn * this.overlapW);
             newsample.adjustError();
             newErrorPercentAllowed = errPercentAllowed + 0.5;
+            this.testRequiltCount += 1;
             return this.findCompleteSeamFor(newsample, canvasSample, newErrorPercentAllowed, depth + 1);
         }
     } else {
@@ -595,8 +610,10 @@ ImageOverlapGraph.prototype.shortestPath = function(){
     this.errorValue = cost_so_far.get(this.goalNode);
 
     // A bit of a hack, but reasonable.
-    this.maxErrorValue = path.length * (256*3);
+    // this.maxErrorValue = path.length * (256*3);
+    this.maxErrorValue   = path.length * Math.sqrt(Math.pow(100,2) + Math.pow(255,2) + Math.pow(255,2));
     this.errorPercentage = 100 * (this.errorValue / this.maxErrorValue);
+    testErrors.push(this.errorPercentage);
 
     // console.log("errorPercentage: " + parseInt(this.errorPercentage * 100));
 
@@ -617,13 +634,54 @@ function ImageOverlapNode(pixelOne, pixelTwo){
     this.pixelOne = pixelOne;
     this.pixelTwo = pixelTwo;
 
-    // TODO: Don't ignore transparency
+    this.pixelOneLAB = this.rgbToLAB(this.pixelOne);
+    this.pixelTwoLAB = this.rgbToLAB(this.pixelTwo);
+
+    var sum = 0;
     for (var i = 0; i < 3; i++) {
-        this.cost += Math.abs(this.pixelOne[i] - this.pixelTwo[i]);
+        sum += Math.pow(this.pixelOneLAB[i] - this.pixelTwoLAB[i],2);
     }
+    this.cost = Math.sqrt(sum);
 }
 ImageOverlapNode.prototype.testDesc = function(){
     return "(x,y): " + this.relX + ", " + this.relY;
+}
+ImageOverlapNode.prototype.rgbToLAB = function(c){
+    // paramenter c in the form [r,g,b]
+    // return the LAB color
+    // http://stackoverflow.com/questions/15408522/rgb-to-xyz-and-lab-colours-conversion
+    // http://www.easyrgb.com/index.php?X=MATH&H=02#text2
+
+    var_RGB = [];
+    for (var i = 0; i < 3; i++){
+        new_channel = ((c[i]/255)>0.04045) ? Math.pow((((c[i]/255)+0.055)/1.055),2.4)*100 : (c[i]/255)/12.92*100;
+        var_RGB.push(new_channel);
+    }
+
+    //Observer. = 2°, Illuminant = D65
+    x = var_RGB[0] * 0.4124 + var_RGB[1] * 0.3576 + var_RGB[2] * 0.1805
+    y = var_RGB[0] * 0.2126 + var_RGB[1] * 0.7152 + var_RGB[2] * 0.0722
+    z = var_RGB[0] * 0.0193 + var_RGB[1] * 0.1192 + var_RGB[2] * 0.9505
+
+    // Now convert from XYZ to LAB
+    //Observer. = 2°, Illuminant = D65
+    var ref_X =  95.047;
+    var ref_Y = 100.000;
+    var ref_Z = 108.883;
+
+    var_XYZ   = [x/ref_X, y/ref_Y, z/ref_Z];
+    mut_XYZ   = [];
+
+    for (var i = 0; i < var_XYZ.length; i++){
+        new_val = (var_XYZ[i]>0.008856) ? Math.pow(var_XYZ[i],1/3) : ((7.787*var_XYZ[i]) + (16/116));
+        mut_XYZ.push(new_val);
+    }
+
+    CIE_L = ( 116 * mut_XYZ[1] ) - 16;
+    CIE_a = 500 * ( mut_XYZ[0] - mut_XYZ[1] );
+    CIE_b = 200 * ( mut_XYZ[1] - mut_XYZ[2] );
+
+    return [CIE_L, CIE_a, CIE_b];
 }
 
 function ImageOverlapPathfinder(){
