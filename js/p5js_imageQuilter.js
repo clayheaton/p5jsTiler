@@ -1,10 +1,11 @@
 // Quilts an image based on samples from one or more sources.
 var testNode, testErrors, testErrorsMin, testErrorsMax, testRequiltCount;
 
-function ImageQuilter(sourceImagesArray, sampleW, sampleH, overlapPercent,widthToQuilt,heightToQuilt, debugMode){
+function ImageQuilter(sourceImagesArray, sampleW, sampleH, overlapPercentW, overlapPercentH,widthToQuilt,heightToQuilt, debugMode){
     this.sourceImages    = sourceImagesArray;
     this.imageSamples    = [];
-    this.overlapPercent  = overlapPercent;
+    this.overlapPercentW = overlapPercentW;
+    this.overlapPercentH = overlapPercentH
     this.widthToQuilt    = widthToQuilt;
     this.heightToQuilt   = heightToQuilt;
     this.sampleW         = sampleW;
@@ -26,8 +27,8 @@ function ImageQuilter(sourceImagesArray, sampleW, sampleH, overlapPercent,widthT
 
     // Assuming square samples at the moment
     // Keep overlapPercent below 0.5
-    this.overlapW = parseInt(sampleW * overlapPercent);
-    this.overlapH = parseInt(sampleH * overlapPercent);
+    this.overlapW = parseInt(sampleW * overlapPercentW);
+    this.overlapH = parseInt(sampleH * overlapPercentH);
 
     // Calculate the number of rows and columns we need. 
     this.columns = Math.ceil(this.widthToQuilt / (this.sampleW - (this.overlapW)));
@@ -445,8 +446,7 @@ ImageOverlapGraph.prototype.findSeam = function(){
 
         // Deal with the nested nodes on the left
         for (var y = this.overlapH; y < this.graphData.length; y++) {
-            // graphData[y].length below instead of this.overlapH?
-            for (var x = 0; x < this.overlapH; x++) {
+            for (var x = 0; x < this.graphData[y].length; x++) {
                 node      = this.graphData[y][x];
                 node.relX = x;
                 node.relY = y;

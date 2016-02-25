@@ -1,5 +1,7 @@
 var exampleSelect, confirmButton, quiltedTestImage;
+var sliderSampleWidth,sliderSampleHeight,sliderHOverlapPercent,sliderWOverlapPercent;
 var imageQuilter;
+var iqo;
 var activeSet;
 var sourceImages = [];
 
@@ -19,6 +21,7 @@ function setup() {
   fill(150);
 
   setupExampleButtons();
+  setupOptions();
 
   // If the user drag/drops images onto the canvas.
   c.drop(processDraggedFile)
@@ -75,63 +78,89 @@ function setupExampleButtons(){
   confirmButton.hide();
 }
 
+function setupOptions(){
+
+  // sliderSampleWidth,sliderSampleHeight,sliderHOverlapPercent,sliderWOverlapPercent
+  sliderSampleWidth = createSlider(20,100,50);
+  sliderSampleWidth.parent('sliderSampleWidth');
+  sliderSampleWidth.changed(function() {select('#span_sampleWidth').html(sliderSampleWidth.value());});
+
+  sliderSampleHeight = createSlider(20,100,50);
+  sliderSampleHeight.parent('sliderSampleHeight');
+  sliderSampleHeight.changed(function() {select('#span_sampleHeight').html(sliderSampleHeight.value());});
+
+  sliderWOverlapPercent = createSlider(10,60,20);
+  sliderWOverlapPercent.parent('sliderWOverlapPercent');
+  sliderWOverlapPercent.changed(function() {select('#span_widthPercent').html(sliderWOverlapPercent.value());});
+
+  sliderHOverlapPercent = createSlider(10,60,20);
+  sliderHOverlapPercent.parent('sliderHOverlapPercent');
+  sliderHOverlapPercent.changed(function() {select('#span_heightPercent').html(sliderHOverlapPercent.value());});
+}
+
+
 
 function exampleChangedEvent(){
   var item  = exampleSelect.value();
   activeSet = exampleDict[item];
 
-    // Empty current source images
+  // Empty current source images
+  while (sourceImages.length > 0) {
+    sourceImages.pop();
+  }
+
+  // Add selected examples to the sourceImages array
+  if (activeSet === null) {
+    reviewSelected = false;
+    confirmButton.hide();
+    draggingImages = false;
+    return;
+  } else {
+    for (var i = 0; i < activeSet.length; i++) {
+      var img = loadImage(activeSet[i]);
+      sourceImages.push(img);
+    }
+    reviewSelected = true;
+    confirmButton.show();
+    draggingImages = false;
+  }
+}
+
+function processDraggedFile(file){
+  // Empty current source images if we're transitioning
+  if(!draggingImages){
     while (sourceImages.length > 0) {
       sourceImages.pop();
     }
-
-    // Add selected examples to the sourceImages array
-    if (activeSet === null) {
-      reviewSelected = false;
-      confirmButton.hide();
-      draggingImages = false;
-      return;
-    } else {
-      for (var i = 0; i < activeSet.length; i++) {
-        var img = loadImage(activeSet[i]);
-        sourceImages.push(img);
-      }
-      reviewSelected = true;
-      confirmButton.show();
-      draggingImages = false;
-    }
+    draggingImages = true;
+      // TODO: What to do with the draggingImages variable?
   }
-
-  function processDraggedFile(file){
-    // Empty current source images if we're transitioning
-    if(!draggingImages){
-      while (sourceImages.length > 0) {
-        sourceImages.pop();
-      }
-      draggingImages = true;
-        // TODO: What to do with the draggingImages variable?
-      }
-      var img = loadImage(file.data);
-      sourceImages.push(img);
-      reviewSelected = true;
-      confirmButton.show();
-    }
-
-    function confirmQuiltButtonClicked(){
-      exampleSelect.remove();
-      confirmButton.remove();
-      reviewSelected       = false;
-      performImageQuilting = true;
-      createQuiltedImage();
-
-    }
-
-    function createQuiltedImage(){
-  // TODO: Allow the user to change parameters.
-  imageQuilter = new ImageQuilter(sourceImages, 100, 100,0.1,width,height, false);
+  var img = loadImage(file.data);
+  sourceImages.push(img);
+  reviewSelected = true;
+  confirmButton.show();
 }
 
+function confirmQuiltButtonClicked(){
+  iqo = {
+    "sampleW" : parseInt(sliderSampleWidth.value()),
+    "sampleH" : parseInt(sliderSampleHeight.value()),
+    "overlapW": parseFloat(sliderWOverlapPercent.value()) / 100,
+    "overlapH": parseFloat(sliderHOverlapPercent.value()) / 100
+  }
 
+  exampleSelect.hide();
+  confirmButton.hide();
+  select('#sliderSampleWidth').hide();
+  select('#sliderSampleHeight').hide();
+  select('#sliderWOverlapPercent').hide();
+  select('#sliderHOverlapPercent').hide();
+
+  reviewSelected       = false;
+  performImageQuilting = true;
+  
+  imageQuilter = new ImageQuilter(sourceImages, iqo["sampleW"], iqo["sampleH"],iqo["overlapW"],iqo["overlapH"],width,height, false);
+}
 
 
 
