@@ -7,6 +7,8 @@ var sourceImages = [];
 
 var reviewSelected       = false;
 var performImageQuilting = false;
+var wangTilingAvailable  = false;
+var performWangTiling    = false;
 
 // Use to toggle whether the background is drawn.
 var drawBackground = true;
@@ -34,28 +36,36 @@ function draw() {
 
   if (reviewSelected) {
     for (var i = 0; i < sourceImages.length; i++) {
-        image(sourceImages[i],0,0,150,150,10 + (i*155),10,150,150);
-      }
+      image(sourceImages[i],0,0,150,150,10 + (i*155),10,150,150);
     }
+  }
 
-    if (performImageQuilting){
-      if (drawBackground) {
-        background("#efefef");
-        drawBackground = false;
-      }
-      if (imageQuilter.completed) {
-        performImageQuilting = false;
+  if (performImageQuilting){
+    if (drawBackground) {
+      background("#efefef");
+      drawBackground = false;
+    }
+    if (imageQuilter.completed) {
+      performImageQuilting = false;
       // TODO: Move to next state here. Function that adds a button, etc.
+      wangTilingAvailable = true;
     } else {
       sample = imageQuilter.nextQuiltingSample();
       image(sample.image,sample.x,sample.y);
     }
   }
+
+  if (wangTilingAvailable){
+    // console.log("Show Wang buttons.");
+    changeInstructions("All done!","Wasn't that fun?");
+    wangTilingAvailable = false;
+  }
+
 }
 
 
 
-function setupExampleButtons(){
+  function setupExampleButtons(){
   // Establish the drop down of examples
   var sampleSelectDiv = document.getElementById('sample_select');
   exampleSelect       = createSelect();
@@ -134,33 +144,44 @@ function processDraggedFile(file){
     }
     draggingImages = true;
       // TODO: What to do with the draggingImages variable?
-  }
-  var img = loadImage(file.data);
-  sourceImages.push(img);
-  reviewSelected = true;
-  confirmButton.show();
-}
-
-function confirmQuiltButtonClicked(){
-  iqo = {
-    "sampleW" : parseInt(sliderSampleWidth.value()),
-    "sampleH" : parseInt(sliderSampleHeight.value()),
-    "overlapW": parseFloat(sliderWOverlapPercent.value()) / 100,
-    "overlapH": parseFloat(sliderHOverlapPercent.value()) / 100
+    }
+    var img = loadImage(file.data);
+    sourceImages.push(img);
+    reviewSelected = true;
+    confirmButton.show();
   }
 
-  exampleSelect.hide();
-  confirmButton.hide();
-  select('#sliderSampleWidth').hide();
-  select('#sliderSampleHeight').hide();
-  select('#sliderWOverlapPercent').hide();
-  select('#sliderHOverlapPercent').hide();
+  function confirmQuiltButtonClicked(){
+    iqo = {
+      "sampleW" : parseInt(sliderSampleWidth.value()),
+      "sampleH" : parseInt(sliderSampleHeight.value()),
+      "overlapW": parseFloat(sliderWOverlapPercent.value()) / 100,
+      "overlapH": parseFloat(sliderHOverlapPercent.value()) / 100
+    }
 
-  reviewSelected       = false;
-  performImageQuilting = true;
-  
-  imageQuilter = new ImageQuilter(sourceImages, iqo["sampleW"], iqo["sampleH"],iqo["overlapW"],iqo["overlapH"],width,height, false);
-}
+    exampleSelect.hide();
+    confirmButton.hide();
+    select('#sliderSampleWidth').hide();
+    select('#sliderSampleHeight').hide();
+    select('#sliderWOverlapPercent').hide();
+    select('#sliderHOverlapPercent').hide();
+
+    reviewSelected       = false;
+    performImageQuilting = true;
+
+    changeInstructions("Quilting...","Please wait.");
+
+    imageQuilter = new ImageQuilter(sourceImages, iqo["sampleW"], iqo["sampleH"],iqo["overlapW"],iqo["overlapH"],width,height, false);
+  }
+
+  function changeInstructions(title_text,body_text){
+    var instTitle = select('#instructions_title');
+    instTitle.elt.textContent = title_text;
+
+    var instBody  = select('#instructions_body');
+    instBody.elt.textContent = body_text;
+    
+  }
 
 
 

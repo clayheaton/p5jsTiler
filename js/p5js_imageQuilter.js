@@ -564,7 +564,7 @@ ImageOverlapGraph.prototype.shortestPath = function(){
     var frontier = new PriorityQueue({ comparator: function(a, b) { return a.cost - b.cost; }}); // Correct?
     frontier.queue(this.startNode);
 
-    var came_from   = new HashMap();
+    var came_from = new HashMap();
     came_from.set(this.startNode,"start"); 
 
     var cost_so_far = new HashMap();
